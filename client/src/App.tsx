@@ -1,35 +1,145 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from '/vite.svg'
-import './App.css'
+import { useEffect, useState, FormEvent } from 'react';
+import './App.css';
 
-function App() {
-  const [count, setCount] = useState(0)
-
-  return (
-    <>
-      <div>
-        <a href="https://vite.dev" target="_blank">
-          <img src={viteLogo} className="logo" alt="Vite logo" />
-        </a>
-        <a href="https://react.dev" target="_blank">
-          <img src={reactLogo} className="logo react" alt="React logo" />
-        </a>
-      </div>
-      <h1>Vite + React</h1>
-      <div className="card">
-        <button onClick={() => setCount((count) => count + 1)}>
-          count is {count}
-        </button>
-        <p>
-          Edit <code>src/App.tsx</code> and save to test HMR
-        </p>
-      </div>
-      <p className="read-the-docs">
-        Click on the Vite and React logos to learn more
-      </p>
-    </>
-  )
+interface Transaction {
+  id: string;
+  description: string;
+  amount: number;
+  category: string;
+  type: "income" | "expense";
+  createdAt: string;
 }
 
-export default App
+function App() {
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  // --- FORM STATE (The "Buffer" for user input) ---
+  const [description, setDescription] = useState("");
+  const [amount, setAmount] = useState("");
+  const [type, setType] = useState<"income" | "expense">("expense");
+
+  // Fetch Data (Same as before)
+  useEffect(() => {
+    fetch('http://localhost:3000/api/transactions')
+      .then(res => res.json())
+      .then(data => {
+        setTransactions(data);
+        setIsLoading(false);
+      });
+  }, []);
+
+  // --- SUBMIT HANDLER (The "Write" Operation) ---
+  const handleSubmit = async (e: FormEvent) => {
+    e.preventDefault(); // 1. Stop the browser from refreshing the page
+
+    if (!description || !amount) return; // Simple validation
+
+    const newTransaction = {
+      description,
+      amount: Number(amount), // Convert string "50" to number 50
+      type,
+      category: "General" // Hardcoded for MVP
+    };
+
+    try {
+      // 2. Send POST request
+      const response = await fetch('http://localhost:3000/api/transactions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newTransaction)
+      });
+
+      if (response.ok) {
+        const savedTransaction = await response.json();
+
+        // 3. Update UI (Optimistic update or Append result)
+        setTransactions([...transactions, savedTransaction]);
+
+        // 4. Reset Form
+        setDescription("");
+        setAmount("");
+      }
+    } catch (error) {
+      console.error("Error saving:", error);
+    }
+  };
+
+  // --- DELETE HANDLER ---
+  const handleDelete = async (id: string) => {
+    try {
+      await fetch(`http://localhost:3000/api/transactions/${id}`, { method: 'DELETE' });
+      // Filter out the deleted item from the local state
+      setTransactions(transactions.filter(t => t.id !== id));
+    } catch (error) {
+      console.error("Error deleting:", error);
+    }
+  };
+
+  const balance = transactions.reduce((acc, curr) => {
+    return curr.type === 'income' ? acc + curr.amount : acc - curr.amount;
+  }, 0);
+
+  return (
+    <div className="app-container">
+      <h1>💰 Finance Tracker</h1>
+
+      <div className="balance-card">
+        <h2>Current Balance</h2>
+        <span className={balance >= 0 ? 'positive' : 'negative'}>
+          ${balance.toFixed(2)}
+        </span>
+      </div>
+
+      {/* --- NEW: ADD TRANSACTION FORM --- */}
+      <form onSubmit={handleSubmit} className="transaction-form">
+        <div className="form-group">
+          <input
+            type="text"
+            placeholder="Description (e.g., Rent)"
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+          />
+        </div>
+        <div className="form-row">
+          <input
+            type="number"
+            placeholder="Amount"
+            value={amount}
+            onChange={(e) => setAmount(e.target.value)}
+          />
+          <select value={type} onChange={(e) => setType(e.target.value as "income" | "expense")}>
+            <option value="expense">Expense</option>
+            <option value="income">Income</option>
+          </select>
+        </div>
+        <button type="submit" className="submit-btn">Add Transaction</button>
+      </form>
+
+      <div className="transaction-list">
+        <h3>History</h3>
+        {isLoading ? <p>Loading...</p> : (
+          <ul>
+            {transactions.map((t) => (
+              <li key={t.id} className={`transaction-item ${t.type}`}>
+                <div className="info">
+                  <span className="desc">{t.description}</span>
+                  <span className="category">{t.category}</span>
+                </div>
+                <div className="actions">
+                  <span className="amount">
+                    {t.type === 'expense' ? '-' : '+'}${t.amount}
+                  </span>
+                  {/* Delete Button */}
+                  <button onClick={() => handleDelete(t.id)} className="delete-btn">×</button>
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+    </div>
+  );
+}
+
+export default App;
