@@ -1,0 +1,22 @@
+version: '3.8'
+
+services:
+  # Backend Service
+  server:
+    build: ./server
+    ports:
+      - "3000:3000"
+    volumes:
+      # This is CRITICAL for persistent data
+      # We map a file on your laptop to the container
+      - ./server/prisma/dev.db:/app/prisma/dev.db
+    environment:
+      - DATABASE_URL=file:./dev.db
+
+  # Frontend Service
+  client:
+    build: ./client
+    ports:
+      - "8080:80" # Map localhost:8080 to container:80
+    depends_on:
+      - server # Ensure server starts first
