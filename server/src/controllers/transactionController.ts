@@ -1,55 +1,52 @@
 import { Request, Response } from 'express';
+import { prisma } from '../db'; // Import our new DB connection
 
-// The Interface lives here for now (or in a models folder)
-interface Transaction {
-  id: number;
-  description: string;
-  amount: number;
-  type: "expense" | "income";
-  category: string;
-  createdAt: string;
-}
-
-// Our "In-Memory" Database
-let transactions: Transaction[] = [
-  { 
-    id: 1, 
-    description: 'Salary', 
-    amount: 5000, 
-    type: 'income', 
-    category: 'Salary',
-    createdAt: new Date().toISOString() 
+// GET: Fetch all transactions
+export const getTransactions = async (req: Request, res: Response) => {
+  try {
+    const transactions = await prisma.transaction.findMany({
+      orderBy: { createdAt: 'desc' } // Sort by newest first
+    });
+    res.json(transactions);
+  } catch (error) {
+    res.status(500).json({ error: "Error fetching data" });
   }
-];
-
-// --- Logic Functions ---
-
-export const getTransactions = (req: Request, res: Response) => {
-  res.json(transactions);
 };
 
-export const createTransaction = (req: Request, res: Response) => {
+// POST: Create a new transaction
+export const createTransaction = async (req: Request, res: Response) => {
   const { description, amount, type, category } = req.body;
 
+  // Basic Validation
   if (!description || !amount || !type) {
     return res.status(400).json({ error: "Missing fields" });
   }
 
-  const newTransaction: Transaction = {
-    id: Date.now(),
-    description,
-    amount: Number(amount),
-    type,
-    category: category || "General",
-    createdAt: new Date().toISOString()
-  };
-
-  transactions.push(newTransaction);
-  res.status(201).json(newTransaction);
+  try {
+    const newTransaction = await prisma.transaction.create({
+      data: {
+        description,
+        amount: Number(amount),
+        type,
+        category: category || "General"
+      }
+    });
+    res.status(201).json(newTransaction);
+  } catch (error) {
+    res.status(500).json({ error: "Error saving data" });
+  }
 };
 
-export const deleteTransaction = (req: Request, res: Response) => {
+// DELETE: Remove a transaction
+export const deleteTransaction = async (req: Request, res: Response) => {
   const idToDelete = Number(req.params.id);
-  transactions = transactions.filter(t => t.id !== idToDelete);
-  res.json({ message: "Deleted successfully" });
+
+  try {
+    await prisma.transaction.delete({
+      where: { id: idToDelete }
+    });
+    res.json({ message: "Deleted successfully" });
+  } catch (error) {
+    res.status(500).json({ error: "Error deleting data" });
+  }
 };

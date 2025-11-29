@@ -1,5 +1,6 @@
 import { useEffect, useState, FormEvent } from 'react';
 import './App.css';
+import SummaryChart from './SummaryChart';
 
 interface Transaction {
   id: string;
@@ -17,6 +18,7 @@ function App() {
   // --- FORM STATE (The "Buffer" for user input) ---
   const [description, setDescription] = useState("");
   const [amount, setAmount] = useState("");
+  const [category, setCategory] = useState("General");
   const [type, setType] = useState<"income" | "expense">("expense");
 
   // Fetch Data (Same as before)
@@ -39,7 +41,7 @@ function App() {
       description,
       amount: Number(amount), // Convert string "50" to number 50
       type,
-      category: "General" // Hardcoded for MVP
+      category: category // Hardcoded for MVP
     };
 
     try {
@@ -91,6 +93,7 @@ function App() {
         </span>
       </div>
 
+
       {/* --- NEW: ADD TRANSACTION FORM --- */}
       <form onSubmit={handleSubmit} className="transaction-form">
         <div className="form-group">
@@ -112,9 +115,18 @@ function App() {
             <option value="expense">Expense</option>
             <option value="income">Income</option>
           </select>
+          <select value={category} onChange={(e) => setCategory(e.target.value)}>
+            <option value="General">General</option>
+            <option value="Groceries">Groceries</option>
+            <option value="Rent">Rent</option>
+            <option value="Entertainment">Entertainment</option>
+            <option value="Salary">Salary</option>
+          </select>
         </div>
         <button type="submit" className="submit-btn">Add Transaction</button>
       </form>
+
+      <SummaryChart transactions={transactions} />
 
       <div className="transaction-list">
         <h3>History</h3>
