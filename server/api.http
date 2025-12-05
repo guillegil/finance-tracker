@@ -4,9 +4,10 @@
 # --------------------------------------------------------
 # VARIABLES (From your Seed Script)
 # --------------------------------------------------------
-@accountId = 7983aa49-bf88-4b2f-9266-428f58c9e025
-@categoryId = bba0e30c-b8d9-404b-acca-96193085a710
-@currencyId = 7b3dfb85-e2f7-428c-a3a2-4d3b23001d9b
+@userId = 230fc6dc-4203-43dc-afed-0914a3466742
+@accountId = cb7f72ca-90e2-44f3-a886-db1712bf90e7
+@categoryId = 7dea049a-aeea-4b1c-9078-b539624ce407
+@currencyId = e52d3c3d-43c4-4399-80b5-434a2ee66d84
 
 # --------------------------------------------------------
 # FEATURE: Manage Transactions
@@ -28,3 +29,17 @@ Content-Type: {{contentType}}
 
 ### (Future) Get All Transactions
 # GET {{baseUrl}}/transactions
+
+### TEST: Insufficient Funds
+POST {{baseUrl}}/transactions
+Content-Type: {{contentType}}
+
+{
+  "name": "Lamborghini",
+  "amount": 1000000.00,
+  "type": "EXPENSE",
+  "date": "2025-12-05T12:00:00.000Z",
+  "accountId": "{{accountId}}",
+  "categoryId": "{{categoryId}}",
+  "currencyId": "{{currencyId}}"
+}

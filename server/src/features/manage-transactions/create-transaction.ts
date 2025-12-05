@@ -1,7 +1,9 @@
 // src/features/manage-transactions/create-transaction.ts
 import { Request, Response, NextFunction } from "express";
 import { z } from "zod";
+
 import { transactionRepository } from "../../entities/transaction/lib/transaction.repository";
+import { accountRepository } from "../../entities/account/lib/account.repository";
 
 // 1. Define the Validation Schema
 // We strictly type what we accept from the frontend.
@@ -24,9 +26,40 @@ export const createTransactionController = async (
         // Validate the request body
         const transactionData = createTransactionSchema.parse(req.body);
 
+        const CURRENT_USER_ID = "230fc6dc-4203-43dc-afed-0914a3466742";
+
+        const isOnwer = await accountRepository.verifyOwnership(
+            transactionData.accountId,
+            CURRENT_USER_ID
+        );
+
+        if (!isOnwer) {
+            res.status(403).json({
+                error: "Access Denied: You do not own this account."
+            });
+
+            return;
+        }
+
+        if (transactionData.type === "EXPENSE") {
+            const currentBalance = await accountRepository.calculateBalance(
+                transactionData.accountId
+            );
+
+            if (currentBalance < transactionData.amount) {
+                res.status(400).json({
+                    error: "Insufficient balance",
+                    currentBalance: currentBalance,
+                    attemptAmount: transactionData.amount
+                });
+
+                return;
+            }
+        }
+
         // Create the transaction in the DataBase
         const newTransaction = await transactionRepository.create({
-            userId: "9c889818-a256-4e7d-98da-0af82680c45a", // Mock user ID
+            userId: CURRENT_USER_ID,
             ...transactionData
         })
 
