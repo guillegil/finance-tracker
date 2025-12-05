@@ -1,0 +1,30 @@
+@baseUrl = http://localhost:3000/api
+@contentType = application/json
+
+# --------------------------------------------------------
+# VARIABLES (From your Seed Script)
+# --------------------------------------------------------
+@accountId = 7983aa49-bf88-4b2f-9266-428f58c9e025
+@categoryId = bba0e30c-b8d9-404b-acca-96193085a710
+@currencyId = 7b3dfb85-e2f7-428c-a3a2-4d3b23001d9b
+
+# --------------------------------------------------------
+# FEATURE: Manage Transactions
+# --------------------------------------------------------
+
+### Create a New Expense
+POST {{baseUrl}}/transactions
+Content-Type: {{contentType}}
+
+{
+  "name": "REST Client Test",
+  "amount": 25.50,
+  "type": "EXPENSE",
+  "date": "2025-12-05T12:00:00.000Z",
+  "accountId": "{{accountId}}",
+  "categoryId": "{{categoryId}}",
+  "currencyId": "{{currencyId}}"
+}
+
+### (Future) Get All Transactions
+# GET {{baseUrl}}/transactions
