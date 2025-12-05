@@ -1,22 +1,60 @@
-version: '3.8'
-
 services:
-  # Backend Service
+  db:
+    image: postgres:15-alpine
+    container_name: finance_db
+    restart: always
+    environment:
+      POSTGRES_USER: ${DB_USER:-admin}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-securepassword}
+      POSTGRES_DB: ${DB_NAME:-finance_tracker}
+    ports:
+      - "5432:5432" # Maps to localhost so you can access it from host tools
+    volumes:
+      - ./postgres-data:/var/lib/postgresql/data
+    networks:
+      - finance-network
+
+  pgadmin:
+      image: dpage/pgadmin4
+      container_name: finance_admin
+      restart: always
+      environment:
+        # These are the credentials you use to LOG IN to the web interface
+        PGADMIN_DEFAULT_EMAIL: "admin@admin.com"
+        PGADMIN_DEFAULT_PASSWORD: "admin"
+      ports:
+        - "5050:80"
+      depends_on:
+        - db
+      networks:
+        - finance-network
+
+  # --- APPLICATION (The code you are writing) ---
   server:
     build: ./server
+    container_name: finance_server
     ports:
       - "3000:3000"
-    volumes:
-      # This is CRITICAL for persistent data
-      # We map a file on your laptop to the container
-      - ./server/prisma/dev.db:/app/prisma/dev.db
     environment:
-      - DATABASE_URL=file:./dev.db
+      # Notice: Inside Docker, we use the service name 'db' as the host!
+      - DATABASE_URL=postgresql://admin:securepassword@db:5432/finance_tracker?schema=public
+    depends_on:
+      - db
+    networks:
+      - finance-network
+    # Optional: Mount source code for hot-reloading if running dev inside docker
+    volumes:
+      - ./server:/app
+      - /app/node_modules
 
-  # Frontend Service
   client:
     build: ./client
+    container_name: finance_client
     ports:
-      - "8080:80" # Map localhost:8080 to container:80
-    depends_on:
-      - server # Ensure server starts first
+      - "5173:5173"
+    networks:
+      - finance-network
+
+networks:
+  finance-network:
+    driver: bridge

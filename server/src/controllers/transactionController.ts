@@ -1,52 +1,71 @@
 import { Request, Response } from 'express';
-import { prisma } from '../db'; // Import our new DB connection
+import { TransactionService } from '../services/transactionService';
 
-// GET: Fetch all transactions
+// --- CONTROLLERS ---
+
 export const getTransactions = async (req: Request, res: Response) => {
   try {
-    const transactions = await prisma.transaction.findMany({
-      orderBy: { createdAt: 'desc' } // Sort by newest first
-    });
+    const userId = req.headers['user-id'] as string;
+    if (!userId) {
+      return res.status(400).json({ error: "User ID header is required" });
+    }
+
+    const transactions = await TransactionService.getTransactions(userId);
     res.json(transactions);
   } catch (error) {
-    res.status(500).json({ error: "Error fetching data" });
+    console.error("Get Error:", error);
+    res.status(500).json({ error: "Failed to fetch transactions" });
   }
 };
 
-// POST: Create a new transaction
 export const createTransaction = async (req: Request, res: Response) => {
-  const { description, amount, type, category } = req.body;
-
-  // Basic Validation
-  if (!description || !amount || !type) {
-    return res.status(400).json({ error: "Missing fields" });
-  }
-
   try {
-    const newTransaction = await prisma.transaction.create({
-      data: {
-        description,
-        amount: Number(amount),
-        type,
-        category: category || "General"
-      }
+    const userId = req.headers['user-id'] as string;
+    const { amount, type, name, description, date, accountId, categoryId, currencyId, destAccountId } = req.body;
+
+    // Basic Validation of required fields
+    if (!userId || !amount || !type || !name || !accountId || !currencyId) {
+      return res.status(400).json({ error: "Missing required fields" });
+    }
+
+    const newTransaction = await TransactionService.createTransaction({
+      userId,
+      amount: Number(amount),
+      type,
+      name,
+      description,
+      date: date || new Date().toISOString(),
+      accountId,
+      categoryId,
+      currencyId,
+      destAccountId: destAccountId ?? null
     });
+
     res.status(201).json(newTransaction);
-  } catch (error) {
-    res.status(500).json({ error: "Error saving data" });
+  } catch (error: any) {
+    console.error("Create Error:", error);
+    // Handle our custom Business Logic errors
+    if (error.message === "Amount must be positive" ||
+      error.message === "Destination account is required for transfers" ||
+      error.message === "Cannot transfer to the same account") {
+      return res.status(400).json({ error: error.message });
+    }
+    res.status(500).json({ error: "Error creating transaction" });
   }
 };
 
-// DELETE: Remove a transaction
 export const deleteTransaction = async (req: Request, res: Response) => {
-  const idToDelete = Number(req.params.id);
-
   try {
-    await prisma.transaction.delete({
-      where: { id: idToDelete }
-    });
+    const userId = req.headers['user-id'] as string;
+    const { id } = req.params;
+
+    if (!id) {
+      return res.status(400).json({ error: "Transaction ID is required" });
+    }
+
+    await TransactionService.deleteTransaction(id, userId);
     res.json({ message: "Deleted successfully" });
   } catch (error) {
-    res.status(500).json({ error: "Error deleting data" });
+    res.status(500).json({ error: "Could not delete transaction" });
   }
 };

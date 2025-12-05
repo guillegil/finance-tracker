@@ -1,26 +1,189 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// server/prisma/schema.prisma
+// This is the Source of Truth for your backend.
 
 generator client {
   provider = "prisma-client-js"
-  // "native" = Your Mac/Windows machine
-  // "linux-musl-arm64-openssl-3.0.x" = The Docker Container (Alpine Linux)
   binaryTargets = ["native", "linux-musl-arm64-openssl-3.0.x"]
 }
 
 datasource db {
-  provider = "sqlite"
+  provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
-// This is the "Blueprint" for your database table
+// --- Enums ---
+// Restricts values to only these options at the database level
+enum TransactionType {
+  INCOME
+  EXPENSE
+  TRANSFER
+}
+
+enum Frequency {
+  DAILY
+  WEEKLY
+  MONTHLY
+  YEARLY
+}
+
+// --- Models ---
+
+model User {
+  id        String    @id @default(uuid()) @db.Uuid
+  name      String?   @db.VarChar(255)
+  surname   String?   @db.VarChar(255)
+  username  String    @unique @db.VarChar(255)
+  email     String    @unique @db.VarChar(255)
+  passHash  String    @map("pass_hash") @db.VarChar(255)
+  birthday  DateTime? @db.Date
+  avatar    String?   @db.VarChar(255)
+  
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @default(now()) @updatedAt @map("updated_at")
+
+  // Relations
+  accounts     Account[]
+  transactions Transaction[]
+  recurrents   Recurrent[]
+
+  // Map to the actual SQL table name
+  @@map("users")
+}
+
+model Account {
+  id      String  @id @default(uuid()) @db.Uuid
+  name    String  @db.VarChar(255)
+  // IBAN is nullable to support Cash/Wallet accounts
+  iban    String? @unique @db.VarChar(255)
+  isMain  Boolean @default(false) @map("is_main")
+  
+  userId  String  @map("user_id") @db.Uuid
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Relations
+  transactionsFrom Transaction[] @relation("SourceAccount")
+  transactionsTo   Transaction[] @relation("DestAccount")
+  recurrents       Recurrent[]
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at")
+
+  // Indexes for speed
+  @@index([userId]) 
+  @@map("accounts")
+}
+
+model Category {
+  id      String  @id @default(uuid()) @db.Uuid
+  name    String  @unique @db.VarChar(255)
+  avatar  String? @db.VarChar(255)
+  
+  transactions Transaction[]
+  recurrents   Recurrent[]
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at")
+
+  @@map("categories")
+}
+
+model Currency {
+  id      String @id @default(uuid()) @db.Uuid
+  name    String @db.VarChar(255)
+  symbol  String @db.VarChar(10)
+  code    String @unique @db.VarChar(4)
+
+  transactions Transaction[]
+  recurrents   Recurrent[]
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at")
+
+  @@map("currencies")
+}
+
+model RecurrentType {
+  id   String @id @default(uuid()) @db.Uuid
+  name String @unique @db.VarChar(255)
+  
+  recurrents Recurrent[]
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at")
+
+  @@map("recurrent_type")
+}
+
 model Transaction {
-  id          Int      @id @default(autoincrement()) // 1, 2, 3...
-  description String
-  amount      Float
-  type        String   // "income" or "expense"
-  category    String   @default("General")
-  createdAt   DateTime @default(now())
+  id          String          @id @default(uuid()) @db.Uuid
+  name        String          @db.VarChar(255)
+  description String?         @db.Text
+  amount      Decimal         @db.Decimal(12, 2) // 12 digits total, 2 decimals
+  type        TransactionType
+  date        DateTime        @default(now())
+  
+  // Relationships
+  userId      String   @map("user_id") @db.Uuid
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  currencyId  String   @map("currency_id") @db.Uuid
+  currency    Currency @relation(fields: [currencyId], references: [id])
+
+  // Category is optional for Transfers
+  categoryId  String?  @map("category_id") @db.Uuid
+  category    Category? @relation(fields: [categoryId], references: [id])
+
+  // Source Account (Where money comes from)
+  accountId   String   @map("account_id") @db.Uuid
+  account     Account  @relation("SourceAccount", fields: [accountId], references: [id], onDelete: Cascade)
+
+  // Destination Account (Only for Transfers)
+  destAccountId String? @map("dest_account_id") @db.Uuid
+  destAccount   Account? @relation("DestAccount", fields: [destAccountId], references: [id], onDelete: SetNull)
+
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @default(now()) @updatedAt @map("updated_at")
+
+  // ⚡️ PERFORMANCE INDEXES 
+  @@index([userId, createdAt(sort: Desc)]) // Dashboard Speed
+  @@index([accountId])                     // Account History Speed
+  @@index([categoryId])                    // Spending Breakdown Speed
+  @@map("transactions")
+}
+
+model Recurrent {
+  id          String    @id @default(uuid()) @db.Uuid
+  name        String    @db.VarChar(255)
+  amount      Decimal   @db.Decimal(12, 2)
+  description String?   @db.Text
+  logo        String?   @db.VarChar(255)
+  isAutomatic Boolean   @default(false) @map("is_automatic")
+  frequency   Frequency
+  interval    Int       @default(1)
+  startDate   DateTime  @map("start_date") @db.Date
+  nextRunDate DateTime  @map("next_run_date") @db.Date
+
+  // Relationships
+  recurrentTypeId String        @map("recurrent_type_id") @db.Uuid
+  recurrentType   RecurrentType @relation(fields: [recurrentTypeId], references: [id])
+
+  userId      String    @map("user_id") @db.Uuid
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Nullable because you might plan a bill before linking an account
+  accountId   String?   @map("account_id") @db.Uuid
+  account     Account?  @relation(fields: [accountId], references: [id], onDelete: SetNull)
+
+  categoryId  String    @map("category_id") @db.Uuid
+  category    Category  @relation(fields: [categoryId], references: [id])
+
+  currencyId  String    @map("currency_id") @db.Uuid
+  currency    Currency  @relation(fields: [currencyId], references: [id])
+
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @default(now()) @updatedAt @map("updated_at")
+
+  // ⚡️ PERFORMANCE INDEXES
+  @@index([userId])
+  @@index([nextRunDate]) // For the nightly cron job
+  @@map("recurrents")
 }

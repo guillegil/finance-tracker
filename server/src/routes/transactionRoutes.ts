@@ -3,9 +3,8 @@ import { getTransactions, createTransaction, deleteTransaction } from '../contro
 
 const router = Router();
 
-// Define the mapping
-router.get('/', getTransactions);       // GET /api/transactions
-router.post('/', createTransaction);    // POST /api/transactions
-router.delete('/:id', deleteTransaction); // DELETE /api/transactions/:id
+router.get('/', getTransactions);
+router.post('/', createTransaction);
+router.delete('/:id', deleteTransaction);
 
 export default router;
