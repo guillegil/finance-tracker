@@ -6,7 +6,6 @@ import { transactionRepository } from "../../entities/transaction/lib/transactio
 import { accountRepository } from "../../entities/account/lib/account.repository";
 
 // 1. Define the Validation Schema
-// We strictly type what we accept from the frontend.
 const createTransactionSchema = z.object({
     name: z.string().min(1),
     amount: z.number().positive(), // Frontend sends number, we store as Decimal
