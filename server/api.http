@@ -59,4 +59,4 @@ Content-Type: {{contentType}}
 }
 
 ### Get Transactions for an Account
-GET {{baseUrl}}/transactions?limit=3
+GET {{baseUrl}}/transactions

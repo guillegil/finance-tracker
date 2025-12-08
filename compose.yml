@@ -15,19 +15,19 @@ services:
       - finance-network
 
   pgadmin:
-      image: dpage/pgadmin4
-      container_name: finance_admin
-      restart: always
-      environment:
-        # These are the credentials you use to LOG IN to the web interface
-        PGADMIN_DEFAULT_EMAIL: "admin@admin.com"
-        PGADMIN_DEFAULT_PASSWORD: "admin"
-      ports:
-        - "5050:80"
-      depends_on:
-        - db
-      networks:
-        - finance-network
+    image: dpage/pgadmin4
+    container_name: finance_admin
+    restart: always
+    environment:
+      # These are the credentials you use to LOG IN to the web interface
+      PGADMIN_DEFAULT_EMAIL: "admin@admin.com"
+      PGADMIN_DEFAULT_PASSWORD: "admin"
+    ports:
+      - "5050:80"
+    depends_on:
+      - db
+    networks:
+      - finance-network
 
   # --- APPLICATION (The code you are writing) ---
   server:
@@ -43,9 +43,10 @@ services:
     networks:
       - finance-network
     # Optional: Mount source code for hot-reloading if running dev inside docker
-    volumes:
-      - ./server:/app
-      - /app/node_modules
+    # Uncomment the following lines if you want to run for production
+    # volumes:
+    #   - ./server:/app
+    #   - /app/node_modules
 
   client:
     build: ./client
