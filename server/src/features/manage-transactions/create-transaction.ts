@@ -25,11 +25,11 @@ export const createTransactionController = async (
         // Validate the request body
         const transactionData = createTransactionSchema.parse(req.body);
 
-        const CURRENT_USER_ID = "230fc6dc-4203-43dc-afed-0914a3466742";
+        const userId = req.headers["x-user-id"] as string;
 
         const isOnwer = await accountRepository.verifyOwnership(
             transactionData.accountId,
-            CURRENT_USER_ID
+            userId
         );
 
         if (!isOnwer) {
@@ -58,7 +58,7 @@ export const createTransactionController = async (
 
         // Create the transaction in the DataBase
         const newTransaction = await transactionRepository.create({
-            userId: CURRENT_USER_ID,
+            userId: userId,
             ...transactionData
         })
 

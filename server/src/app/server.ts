@@ -3,10 +3,12 @@ import express, { Request, Response, NextFunction } from "express";
 import cors from "cors";
 import { router } from "./routes";
 import morgan from "morgan";
+import { mockAuthMiddleware } from "../shared/middleware/mock-auth.middleware";
 
 const app = express();
 
 // Middleware
+app.use(mockAuthMiddleware);
 app.use(morgan("dev"));
 app.use(cors());
 app.use(express.json());

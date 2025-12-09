@@ -17,13 +17,10 @@ export const getTransactionsController = async (
     try {
         const transactionsFilter = getTransactionsSchema.parse(req.query);
 
-        console.log(transactionsFilter);
-
-        // Mock user for now
-        const CURRENT_USER_ID = "230fc6dc-4203-43dc-afed-0914a3466742";
+        const userId = req.headers["x-user-id"] as string;
 
         const filteredTransactions = await transactionRepository.findMany({
-            userId: CURRENT_USER_ID,
+            userId,
             accountId: transactionsFilter.accountId,
             limit: transactionsFilter.limit,
         });

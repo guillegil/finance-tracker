@@ -2,6 +2,13 @@
 import { db } from "../../../shared/api/db";
 import { Prisma } from "@prisma/client";
 
+export type AccountFilter = {
+  userId: string,
+  accountId: string,
+
+}
+
+
 export const accountRepository = {
   /**
    * Checks if an account exists and belongs to a specific user.
@@ -14,6 +21,37 @@ export const accountRepository = {
       },
     });
     return count > 0;
+  },
+
+  /**
+   * Creates a new account for a specific user.
+   */
+  async create(data: Prisma.AccountUncheckedCreateInput) {
+    return db.account.create({ data });
+  },
+
+  async findManyByUserId(userId: string) {
+    const accounts = await db.account.findMany({
+      where: {
+        userId: userId,
+      },
+      include: {
+        currency: true,
+      },
+      orderBy: { createdAt: "asc" },
+    });
+
+    const accountsWithBalance = await Promise.all(
+      accounts.map(async (acc) => {
+        const balance = await accountRepository.calculateBalance(acc.id);
+        return {
+          ...acc,
+          balance: balance,
+        }
+      })
+    );
+
+    return accountsWithBalance;
   },
 
   /**
@@ -33,7 +71,7 @@ export const accountRepository = {
     // Iterate through the results (Income vs Expense)
     for (const group of aggregations) {
       const amount = group._sum.amount?.toNumber() || 0; // Convert Decimal to JS Number
-      
+
       if (group.type === "INCOME") {
         balance += amount;
       } else if (group.type === "EXPENSE") {

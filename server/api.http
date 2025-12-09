@@ -4,10 +4,10 @@
 # --------------------------------------------------------
 # VARIABLES (From your Seed Script)
 # --------------------------------------------------------
-@userId = 230fc6dc-4203-43dc-afed-0914a3466742
-@accountId = cb7f72ca-90e2-44f3-a886-db1712bf90e7
-@categoryId = 7dea049a-aeea-4b1c-9078-b539624ce407
-@currencyId = e52d3c3d-43c4-4399-80b5-434a2ee66d84
+@userId = 3db4100f-12a3-4514-933b-7a2d39931c20
+@accountId = 27f8cbd3-220b-4821-9829-a627925ca110
+@categoryId = 0d89a654-bc95-430e-90f4-87d09d337a34
+@currencyId = f74ff912-39b5-4cb4-a64e-3a27437bb53f
 
 # --------------------------------------------------------
 # FEATURE: Manage Transactions
@@ -16,9 +16,10 @@
 ### Create a New Income
 POST {{baseUrl}}/transactions
 Content-Type: {{contentType}}
+x-user-id: {{userId}}
 
 {
-  "name": "REST Client Test",
+  "name": "Salary Deposit",
   "amount": 1000,
   "type": "INCOME",
   "date": "2025-12-05T12:00:00.000Z",
@@ -30,9 +31,10 @@ Content-Type: {{contentType}}
 ### Create a New Expense
 POST {{baseUrl}}/transactions
 Content-Type: {{contentType}}
+x-user-id: {{userId}}
 
 {
-  "name": "REST Client Test",
+  "name": "Grocery Run",
   "amount": 30.58,
   "type": "EXPENSE",
   "date": "2025-12-05T12:00:00.000Z",
@@ -41,12 +43,10 @@ Content-Type: {{contentType}}
   "currencyId": "{{currencyId}}"
 }
 
-### (Future) Get All Transactions
-# GET {{baseUrl}}/transactions
-
-### TEST: Insufficient Funds
+### TEST: Insufficient Funds (Should fail with 400)
 POST {{baseUrl}}/transactions
 Content-Type: {{contentType}}
+x-user-id: {{userId}}
 
 {
   "name": "Lamborghini",
@@ -58,5 +58,38 @@ Content-Type: {{contentType}}
   "currencyId": "{{currencyId}}"
 }
 
-### Get Transactions for an Account
-GET {{baseUrl}}/transactions
+### Get All Transactions (With Filters)
+GET {{baseUrl}}/transactions?limit=5
+x-user-id: {{userId}}
+
+### Get Transactions for a specific Account
+GET {{baseUrl}}/transactions?accountId={{accountId}}
+x-user-id: {{userId}}
+
+
+# --------------------------------------------------------
+# FEATURE: Manage Accounts
+# --------------------------------------------------------
+
+### Create an account
+POST {{baseUrl}}/accounts
+Content-Type: {{contentType}}
+x-user-id: {{userId}}
+
+{
+  "name": "ING Netherlands",
+  "isMain": true,
+  "currencyId": "{{currencyId}}"
+}
+
+### Get accounts (Should calculate balance)
+GET {{baseUrl}}/accounts
+x-user-id: {{userId}}
+
+# --------------------------------------------------------
+# SECURITY TEST
+# --------------------------------------------------------
+
+### TEST: Unauthorized Access (Missing Header)
+# Expected: 401 Unauthorized
+GET {{baseUrl}}/accounts

@@ -42,6 +42,7 @@ async function main() {
         data: {
             name: "Cash Wallet",
             isMain: true,
+            currencyId: currency.id,
             userId: user.id,
         },
     });

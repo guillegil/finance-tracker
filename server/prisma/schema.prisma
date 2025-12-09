@@ -59,6 +59,9 @@ model Account {
   userId  String  @map("user_id") @db.Uuid
   user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
 
+  currencyId String   @map("currency_id") @db.Uuid
+  currency   Currency @relation(fields: [currencyId], references: [id], onDelete: Cascade)
+
   // Relations
   transactionsFrom Transaction[] @relation("SourceAccount")
   transactionsTo   Transaction[] @relation("DestAccount")
@@ -92,12 +95,14 @@ model Currency {
   symbol  String @db.VarChar(10)
   code    String @unique @db.VarChar(4)
 
-  transactions Transaction[]
-  recurrents   Recurrent[]
 
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @default(now()) @updatedAt @map("updated_at")
 
+  transactions Transaction[]
+  recurrents   Recurrent[]
+  accounts     Account[]
+  
   @@map("currencies")
 }
 
