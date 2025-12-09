@@ -1,6 +1,9 @@
+-- 0. Extensions (Required for UUID generation in some Postgres versions)
+CREATE EXTENSION IF NOT EXISTS "pgcrypto";
+
 -- 1. Create Tables
 CREATE TABLE IF NOT EXISTS "users" (
-    "id" UUID PRIMARY KEY DEFAULT gen_random_uuid(), -- Auto-generate IDs
+    "id" UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     "name" VARCHAR(255),
     "surname" VARCHAR(255),
     "pass_hash" VARCHAR(255) NOT NULL,
@@ -8,7 +11,7 @@ CREATE TABLE IF NOT EXISTS "users" (
     "email" VARCHAR(255) NOT NULL UNIQUE,
     "username" VARCHAR(255) NOT NULL UNIQUE,
     "avatar" VARCHAR,
-    "created_at" TIMESTAMP DEFAULT NOW(), -- Auto-timestamp
+    "created_at" TIMESTAMP DEFAULT NOW(),
     "updated_at" TIMESTAMP DEFAULT NOW()
 );
 
@@ -39,9 +42,10 @@ CREATE TABLE IF NOT EXISTS "recurrent_type" (
 CREATE TABLE IF NOT EXISTS "accounts" (
     "id" UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     "name" VARCHAR(255) NOT NULL,
-    "iban" VARCHAR(255) UNIQUE, -- Nullable for Cash/Wallet
+    "iban" VARCHAR(255) UNIQUE, 
     "is_main" BOOLEAN DEFAULT FALSE,
     "user_id" UUID NOT NULL,
+    "currency_id" UUID NOT NULL, -- NEW: Mandatory Link
     "created_at" TIMESTAMP DEFAULT NOW(),
     "updated_at" TIMESTAMP DEFAULT NOW()
 );
@@ -49,7 +53,7 @@ CREATE TABLE IF NOT EXISTS "accounts" (
 CREATE TABLE IF NOT EXISTS "recurrents" (
     "id" UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     "name" VARCHAR(255) NOT NULL,
-    "amount" DECIMAL(12, 2) NOT NULL, -- Standard currency uses 2 decimals
+    "amount" DECIMAL(12, 2) NOT NULL,
     "description" TEXT,
     "logo" VARCHAR(255),
     "is_automatic" BOOLEAN DEFAULT FALSE,
@@ -59,11 +63,10 @@ CREATE TABLE IF NOT EXISTS "recurrents" (
     "next_run_date" DATE NOT NULL,
     "created_at" TIMESTAMP DEFAULT NOW(),
     "updated_at" TIMESTAMP DEFAULT NOW(),
-    -- Foreign Keys defined inline are cleaner
     "recurrent_type_id" UUID NOT NULL,
-    "account_id" UUID, -- Nullable (Draft state)
+    "account_id" UUID,
     "category_id" UUID NOT NULL,
-    "user_id" UUID NOT NULL, -- Must belong to a user
+    "user_id" UUID NOT NULL,
     "currency_id" UUID NOT NULL
 );
 
@@ -73,22 +76,25 @@ CREATE TABLE IF NOT EXISTS "transactions" (
     "description" TEXT,
     "amount" DECIMAL(12, 2) NOT NULL,
     "type" VARCHAR(50) NOT NULL,
-    "created_at" TIMESTAMP DEFAULT NOW(),
+    "date" TIMESTAMP DEFAULT NOW(), -- NEW: The Transaction Date
+    "created_at" TIMESTAMP DEFAULT NOW(), -- System Audit Timestamp
     "updated_at" TIMESTAMP DEFAULT NOW(),
     "user_id" UUID NOT NULL,
     "currency_id" UUID NOT NULL,
-    "category_id" UUID, -- Nullable (Transfers might not need categories)
+    "category_id" UUID,
     "account_id" UUID NOT NULL,
-    "dest_account_id" UUID -- Nullable (Only for Transfers)
+    "dest_account_id" UUID
 );
 
 -- ------------------
 -- Relationships
 -- ------------------
 
--- Accounts (If user is deleted, delete accounts)
+-- Accounts
 ALTER TABLE "accounts" 
 ADD FOREIGN KEY ("user_id") REFERENCES "users"("id") ON DELETE CASCADE;
+ALTER TABLE "accounts" 
+ADD FOREIGN KEY ("currency_id") REFERENCES "currencies"("id"); -- NEW
 
 -- Recurrents
 ALTER TABLE "recurrents" 
@@ -98,7 +104,7 @@ ADD FOREIGN KEY ("category_id") REFERENCES "categories"("id");
 ALTER TABLE "recurrents" 
 ADD FOREIGN KEY ("currency_id") REFERENCES "currencies"("id");
 ALTER TABLE "recurrents" 
-ADD FOREIGN KEY ("account_id") REFERENCES "accounts"("id") ON DELETE SET NULL; -- Keep rule if account deleted?
+ADD FOREIGN KEY ("account_id") REFERENCES "accounts"("id") ON DELETE SET NULL;
 ALTER TABLE "recurrents" 
 ADD FOREIGN KEY ("recurrent_type_id") REFERENCES "recurrent_type"("id");
 
@@ -140,19 +146,17 @@ ALTER TABLE "recurrents"
 ADD CONSTRAINT "check_interval_positive" 
 CHECK ("interval" >= 1);
 
-
--- The "Sanity Check" (Recommended)
+-- Sanity Check
 ALTER TABLE "users"
 ADD CONSTRAINT "check_email_has_at" 
 CHECK (position('@' in "email") > 0);
-
 
 -- ------------------
 -- Indexes
 -- ------------------
 
 CREATE INDEX "idx_transactions_user_date" 
-ON "transactions" ("user_id", "created_at" DESC);
+ON "transactions" ("user_id", "date" DESC); -- Updated to sort by 'date'
 
 CREATE INDEX "idx_transactions_account" 
 ON "transactions" ("account_id");
